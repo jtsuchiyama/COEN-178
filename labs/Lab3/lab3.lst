@@ -1,0 +1,413 @@
+SQL> start lab3_part1_tables.sql
+SQL> CREATE TABLE L_EMP (
+  2  empNo Integer Primary Key,
+  3  empname VARCHAR(10),
+  4  deptId VARCHAR(5)
+  5  );
+
+Table created.
+
+SQL> 
+SQL> CREATE TABLE L_DEPT (
+  2  deptId VARCHAR(5) Primary Key,
+  3  deptname VARCHAR(10),
+  4  budget NUMBER(10,2)
+  5  );
+
+Table created.
+
+SQL> 
+SQL> start lab3_part1_values.sql
+SQL> INSERT into L_EMP values(1,'smith','d1');
+
+1 row created.
+
+SQL> INSERT into L_EMP values(2,'jones','d2');
+
+1 row created.
+
+SQL> INSERT into L_EMP values(3,'wayne','d1');
+
+1 row created.
+
+SQL> INSERT into L_EMP values(4,'moor','d3');
+
+1 row created.
+
+SQL> INSERT into L_EMP values(5,'king','d1');
+
+1 row created.
+
+SQL> INSERT into L_EMP values(6,'chen','d1');
+
+1 row created.
+
+SQL> INSERT into L_EMP values(7,'winger','d3');
+
+1 row created.
+
+SQL> INSERT into L_DEPT values('d1','Research',200000);
+
+1 row created.
+
+SQL> INSERT into L_DEPT values('d2','Devt',600000);
+
+1 row created.
+
+SQL> INSERT into L_DEPT values('d3','Testing',100000);
+
+1 row created.
+
+SQL> INSERT into L_DEPT values('d4','Advert',700000);
+
+1 row created.
+
+SQL> INSERT into L_DEPT values('d9','HR',700000);
+
+1 row created.
+
+SQL> start lab3_part1_queries.sql
+SQL> SELECT * FROM L_EMP;
+
+     EMPNO EMPNAME    DEPTI                                                     
+---------- ---------- -----                                                     
+         1 smith      d1                                                        
+         2 jones      d2                                                        
+         3 wayne      d1                                                        
+         4 moor       d3                                                        
+         5 king       d1                                                        
+         6 chen       d1                                                        
+         7 winger     d3                                                        
+
+7 rows selected.
+
+SQL> SELECT * FROM L_DEPT;
+
+DEPTI DEPTNAME       BUDGET                                                     
+----- ---------- ----------                                                     
+d1    Research       200000                                                     
+d2    Devt           600000                                                     
+d3    Testing        100000                                                     
+d4    Advert         700000                                                     
+d9    HR             700000                                                     
+
+SQL> SELECT empno, empname FROM L_EMP, L_DEPT WHERE deptname='Research';
+
+     EMPNO EMPNAME                                                              
+---------- ----------                                                           
+         1 smith                                                                
+         2 jones                                                                
+         3 wayne                                                                
+         4 moor                                                                 
+         5 king                                                                 
+         6 chen                                                                 
+         7 winger                                                               
+
+7 rows selected.
+
+SQL> SELECT empno, empname FROM L_EMP, L_DEPT WHERE L_EMP.deptid = L_DEPT.deptid AND deptname = 'Research';
+
+     EMPNO EMPNAME                                                              
+---------- ----------                                                           
+         1 smith                                                                
+         3 wayne                                                                
+         5 king                                                                 
+         6 chen                                                                 
+
+SQL> SELECT empno, empname FROM L_EMP WHERE L_EMP.deptid = (SELECT deptid FROM L_DEPT WHERE deptname ='Research');
+
+     EMPNO EMPNAME                                                              
+---------- ----------                                                           
+         1 smith                                                                
+         3 wayne                                                                
+         5 king                                                                 
+         6 chen                                                                 
+
+SQL> SELECT empno, empname FROM L_EMP WHERE L_EMP.deptid = (SELECT deptid FROM L_DEPT WHERE budget > 100000);
+SELECT empno, empname FROM L_EMP WHERE L_EMP.deptid = (SELECT deptid FROM L_DEPT WHERE budget > 100000)
+                                                       *
+ERROR at line 1:
+ORA-01427: single-row subquery returns more than one row 
+
+
+SQL> SELECT empno, empname FROM L_EMP WHERE L_EMP.deptid in (SELECT deptid FROM L_DEPT WHERE budget > 100000);
+
+     EMPNO EMPNAME                                                              
+---------- ----------                                                           
+         1 smith                                                                
+         2 jones                                                                
+         3 wayne                                                                
+         5 king                                                                 
+         6 chen                                                                 
+
+SQL> SELECT deptname FROM L_DEPT WHERE budget >= (SELECT max(budget) FROM L_DEPT);
+
+DEPTNAME                                                                        
+----------                                                                      
+Advert                                                                          
+HR                                                                              
+
+SQL> SELECT deptname FROM L_DEPT WHERE budget >= ALL(SELECT budget FROM L_DEPT);
+
+DEPTNAME                                                                        
+----------                                                                      
+HR                                                                              
+Advert                                                                          
+
+SQL> SELECT count(*) LargeBudgetDepts FROM L_DEPT WHERE budget > 100000;
+
+LARGEBUDGETDEPTS                                                                
+----------------                                                                
+               4                                                                
+
+SQL> SELECT budget Budget, count(*) HowMany FROM L_DEPT WHERE budget > 100000 GROUP BY (budget);
+
+    BUDGET    HOWMANY                                                           
+---------- ----------                                                           
+    600000          1                                                           
+    200000          1                                                           
+    700000          2                                                           
+
+SQL> INSERT INTO L_DEPT VALUES('d5','Food','300000');
+
+1 row created.
+
+SQL> INSERT INTO L_DEPT VALUES('d6','Utilities','250000');
+
+1 row created.
+
+SQL> INSERT INTO L_DEPT VALUES('d7','Writing','100000');
+
+1 row created.
+
+SQL> INSERT INTO L_DEPT VALUES('d8','PR','700000');
+
+1 row created.
+
+SQL> SELECT budget Budget, count(*) HowMany FROM L_DEPT WHERE budget > 100000 GROUP BY (budget);
+
+    BUDGET    HOWMANY                                                           
+---------- ----------                                                           
+    300000          1                                                           
+    600000          1                                                           
+    250000          1                                                           
+    200000          1                                                           
+    700000          3                                                           
+
+SQL> SELECT budget Budget, count(*) EqualOrGreaterThan2 FROM L_DEPT WHERE budget > 100000 GROUP BY (budget) HAVING count(*) >= 2;
+
+    BUDGET EQUALORGREATERTHAN2                                                  
+---------- -------------------                                                  
+    700000                   3                                                  
+
+SQL> start lab3_part2_queries.sql
+SQL> SELECT FIRST||LAST fullname FROM Staff WHERE salary = (SELECT max(salary) FROM Staff);
+
+FULLNAME                                                                        
+----------------------------------------                                        
+ Michael M.Hash                                                                 
+ Timothy P.Love                                                                 
+
+SQL> SELECT last, salary FROM Staff WHERE salary = (SELECT salary FROM STAFF WHERE last='Zichal');
+
+LAST                     SALARY                                                 
+-------------------- ----------                                                 
+Bhowmik                  100000                                                 
+DuBois                   100000                                                 
+Frankel                  100000                                                 
+Hurwitz                  100000                                                 
+Jarvis-Shean             100000                                                 
+Jones                    100000                                                 
+Simas                    100000                                                 
+Teehee                   100000                                                 
+Vega                     100000                                                 
+Zichal                   100000                                                 
+
+10 rows selected.
+
+SQL> SELECT last, salary FROM Staff WHERE salary = (SELECT salary FROM STAFF WHERE UPPER(last) ='ZICHAL');
+
+LAST                     SALARY                                                 
+-------------------- ----------                                                 
+Bhowmik                  100000                                                 
+DuBois                   100000                                                 
+Frankel                  100000                                                 
+Hurwitz                  100000                                                 
+Jarvis-Shean             100000                                                 
+Jones                    100000                                                 
+Simas                    100000                                                 
+Teehee                   100000                                                 
+Vega                     100000                                                 
+Zichal                   100000                                                 
+
+10 rows selected.
+
+SQL> SELECT last, salary FROM Staff WHERE salary = (SELECT salary FROM STAFF WHERE UPPER(last) ='YOUNG');
+SELECT last, salary FROM Staff WHERE salary = (SELECT salary FROM STAFF WHERE UPPER(last) ='YOUNG')
+                                               *
+ERROR at line 1:
+ORA-01427: single-row subquery returns more than one row 
+
+
+SQL> SELECT last, salary FROM Staff WHERE salary IN (SELECT salary FROM STAFF WHERE UPPER(last) ='YOUNG');
+
+LAST                     SALARY                                                 
+-------------------- ----------                                                 
+Alley                     42000                                                 
+Asen                      42000                                                 
+Attili                    58511                                                 
+Ayling                    42000                                                 
+Baggetto                  42000                                                 
+Bates                     42000                                                 
+Bisi                      42000                                                 
+Block                     42000                                                 
+Campbell                  42000                                                 
+Campos                    42000                                                 
+Canery                    58511                                                 
+
+LAST                     SALARY                                                 
+-------------------- ----------                                                 
+Carden                    42000                                                 
+Castillo                  42000                                                 
+Chhabra                   42000                                                 
+Claude                    58511                                                 
+Cobbina                   42000                                                 
+Conrad                    42000                                                 
+Cuba                      42000                                                 
+Cunningham                42000                                                 
+Donovan                   42000                                                 
+Dorsett                   42000                                                 
+Faulman                   42000                                                 
+
+LAST                     SALARY                                                 
+-------------------- ----------                                                 
+Fenn                      42000                                                 
+Fergenson                 42000                                                 
+Ford                      42000                                                 
+Frank                     42000                                                 
+Godfrey                   42000                                                 
+Gottlieb                  42000                                                 
+Grant                     42000                                                 
+Hanson                    42000                                                 
+Harris                    42000                                                 
+Hegde                     42000                                                 
+Hernandez                 42000                                                 
+
+LAST                     SALARY                                                 
+-------------------- ----------                                                 
+Hiatt                     42000                                                 
+Hughes                    42000                                                 
+Jackson                   42000                                                 
+Jones                     42000                                                 
+Kennedy                   42000                                                 
+Ledbetter                 42000                                                 
+Lee                       42000                                                 
+Lewin                     42000                                                 
+Lewis                     42000                                                 
+Limon                     42000                                                 
+Metcalf                   42000                                                 
+
+LAST                     SALARY                                                 
+-------------------- ----------                                                 
+Mrazek                    42000                                                 
+Northern                  42000                                                 
+Ocampo                    42000                                                 
+Oxtoby                    42000                                                 
+Page                      42000                                                 
+Pope                      42000                                                 
+Portilla                  42000                                                 
+Posey                     42000                                                 
+Pulliam                   42000                                                 
+Robertson                 42000                                                 
+Schaub                    42000                                                 
+
+LAST                     SALARY                                                 
+-------------------- ----------                                                 
+Schmuck                   42000                                                 
+Sinha                     42000                                                 
+Sirbu                     42000                                                 
+Smith                     42000                                                 
+Smith                     42000                                                 
+Stickel                   42000                                                 
+Swanson                   42000                                                 
+Tennison                  42000                                                 
+Thomas                    42000                                                 
+Tranchin                  42000                                                 
+Young                     42000                                                 
+
+LAST                     SALARY                                                 
+-------------------- ----------                                                 
+Young                     58511                                                 
+
+67 rows selected.
+
+SQL> SELECT salary, count(*) SALARIES_100K_ABOVE FROM Staff WHERE salary > 100000 GROUP BY (salary);
+
+    SALARY SALARIES_100K_ABOVE                                                  
+---------- -------------------                                                  
+    102000                   8                                                  
+    158500                   9                                                  
+    155500                   5                                                  
+    145000                   1                                                  
+    112774                   1                                                  
+    113000                   5                                                  
+    136134                   1                                                  
+    130000                   5                                                  
+    129758                   1                                                  
+    165000                   1                                                  
+    153500                   2                                                  
+
+    SALARY SALARIES_100K_ABOVE                                                  
+---------- -------------------                                                  
+    162500                   1                                                  
+    139500                   1                                                  
+    130500                  26                                                  
+    100904                   2                                                  
+    149000                   2                                                  
+    114000                   3                                                  
+    172200                  23                                                  
+    123758                   1                                                  
+    147500                   4                                                  
+    162900                   1                                                  
+    115731                   1                                                  
+
+    SALARY SALARIES_100K_ABOVE                                                  
+---------- -------------------                                                  
+    172000                   1                                                  
+    122744                   1                                                  
+    140259                   1                                                  
+    106839                   1                                                  
+    110500                   1                                                  
+    132009                   1                                                  
+    148510                   2                                                  
+    126251                   1                                                  
+    113605                   1                                                  
+    140000                   2                                                  
+    120000                   8                                                  
+
+    SALARY SALARIES_100K_ABOVE                                                  
+---------- -------------------                                                  
+    105211                   1                                                  
+    179700                   2                                                  
+    150000                   3                                                  
+    102829                   1                                                  
+    110000                   1                                                  
+    144868                   1                                                  
+    107770                   1                                                  
+
+40 rows selected.
+
+SQL> SELECT salary, count(*) SALARIES_100K_ABOVE FROM Staff WHERE salary > 100000 GROUP BY (salary) HAVING count(*) >= 10;
+
+    SALARY SALARIES_100K_ABOVE                                                  
+---------- -------------------                                                  
+    130500                  26                                                  
+    172200                  23                                                  
+
+SQL> WITH EmpCount AS (SELECT deptid, count(*) Count FROM L_EMP GROUP BY (deptid)) SELECT deptid FROM EmpCount WHERE Count >= (SELECT max(Count) FROM EmpCount);
+
+DEPTI                                                                           
+-----                                                                           
+d1                                                                              
+
+SQL> spool off

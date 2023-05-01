@@ -1,0 +1,344 @@
+SQL> start lab6_queries.sql
+SQL> SET ECHO ON;
+SQL> 
+SQL> DROP TABLE ACCOUNTS_6;
+
+Table dropped.
+
+SQL> DROP TABLE TOTALS_6;
+
+Table dropped.
+
+SQL> DROP TABLE BANKCUST_6;
+
+Table dropped.
+
+SQL> 
+SQL> Create table BANKCUST_6 (
+  2  custno VARCHAR(5) Primary Key,
+  3  custname VARCHAR(20),
+  4  street VARCHAR(30),
+  5  city VARCHAR(20)
+  6  );
+
+Table created.
+
+SQL> 
+SQL> Create table ACCOUNTS_6 (
+  2  AccountNo VARCHAR(5) Primary Key,
+  3  accountType VARCHAR(10),
+  4  amount NUMBER(10,2),
+  5  custno varchar(5),
+  6  CONSTRAINT accounts_fkey FOREIGN Key (custno)REFERENCES BANKCUST_6(custno)
+  7  );
+
+Table created.
+
+SQL> 
+SQL> 
+SQL> Create table TOTALS_6 (custno VARCHAR(5),
+  2  totalAmount Number(10,2),
+  3  CONSTRAINT totals_fkey FOREIGN Key (custno)REFERENCES BANKCUST_6(custno)
+  4  );
+
+Table created.
+
+SQL> 
+SQL> set serveroutput on;
+SQL> 
+SQL> CREATE or REPLACE TRIGGER display_customer_trig
+  2  	     AFTER INSERT on BankCust_6
+  3  	     FOR EACH ROW
+  4  BEGIN
+  5  	     DBMS_OUTPUT.PUT_LINE(
+  6  		     'From Trigger '||'Customer NO:'||:new.custno||' Customer Name: '||:new.custname||' Customer City: '||:new.city
+  7  	     );
+  8  END;
+  9  /
+
+Trigger created.
+
+SQL> show errors;
+No errors.
+SQL> 
+SQL> DELETE FROM BANKCUST_6;
+
+0 rows deleted.
+
+SQL> 
+SQL> insert into BANKCUST_6 values('c1','Smith','32 Lincoln st','SJ');
+From Trigger Customer NO:c1 Customer Name: Smith Customer City: SJ              
+
+1 row created.
+
+SQL> insert into BANKCUST_6 values('c2','Jones','44 Benton st','SJ');
+From Trigger Customer NO:c2 Customer Name: Jones Customer City: SJ              
+
+1 row created.
+
+SQL> insert into BANKCUST_6 values('c3','Peters','12 palm st','SFO');
+From Trigger Customer NO:c3 Customer Name: Peters Customer City: SFO            
+
+1 row created.
+
+SQL> insert into BANKCUST_6 values('c20','Chen','20 san felipo','LA');
+From Trigger Customer NO:c20 Customer Name: Chen Customer City: LA              
+
+1 row created.
+
+SQL> insert into BANKCUST_6 values('c33','Williams',' 11 cherry Ave','SFO');
+From Trigger Customer NO:c33 Customer Name: Williams Customer City: SFO         
+
+1 row created.
+
+SQL> 
+SQL> Alter trigger display_customer_trig disable;
+
+Trigger altered.
+
+SQL> 
+SQL> Create Or Replace Trigger Acct_Cust_Trig
+  2  AFTER INSERT ON Accounts_6
+  3  FOR EACH ROW
+  4  BEGIN
+  5  	     update totals_6
+  6  	     set totalAmount = totalAmount + :new.amount
+  7  	     where custno = :new.custno;
+  8  
+  9  	     insert into totals_6 (select :new.custno, :new.amount from dual
+ 10  	     where not exists (select * from TOTALS_6 where custno=:new.custno));
+ 11  END;
+ 12  /
+
+Trigger created.
+
+SQL> show errors;
+No errors.
+SQL> 
+SQL> DELETE FROM Accounts_6;
+
+0 rows deleted.
+
+SQL> DELETE FROM Totals_6;
+
+0 rows deleted.
+
+SQL> 
+SQL> insert into ACCOUNTS_6 values('a1523','checking',2000.00,'c1');
+
+1 row created.
+
+SQL> insert into ACCOUNTS_6 values('a2134','saving',5000.00,'c1');
+
+1 row created.
+
+SQL> insert into ACCOUNTS_6 values('a4378','checking',1000.00,'c2');
+
+1 row created.
+
+SQL> insert into ACCOUNTS_6 values('a5363','saving',8000.00,'c2');
+
+1 row created.
+
+SQL> insert into ACCOUNTS_6 values('a7236','checking',500.00,'c33');
+
+1 row created.
+
+SQL> insert into ACCOUNTS_6 values('a8577','checking',150.00,'c20');
+
+1 row created.
+
+SQL> 
+SQL> SELECT * FROM ACCOUNTS_6;
+
+ACCOU ACCOUNTTYP     AMOUNT CUSTN                                               
+----- ---------- ---------- -----                                               
+a1523 checking         2000 c1                                                  
+a2134 saving           5000 c1                                                  
+a4378 checking         1000 c2                                                  
+a5363 saving           8000 c2                                                  
+a7236 checking          500 c33                                                 
+a8577 checking          150 c20                                                 
+
+6 rows selected.
+
+SQL> SELECT * FROM TOTALS_6;
+
+CUSTN TOTALAMOUNT                                                               
+----- -----------                                                               
+c1           7000                                                               
+c2           9000                                                               
+c33           500                                                               
+c20           150                                                               
+
+SQL> 
+SQL> update Accounts_6 set amount = 1000 where accountno = 'a1523';
+
+1 row updated.
+
+SQL> 
+SQL> SELECT * FROM ACCOUNTS_6;
+
+ACCOU ACCOUNTTYP     AMOUNT CUSTN                                               
+----- ---------- ---------- -----                                               
+a1523 checking         1000 c1                                                  
+a2134 saving           5000 c1                                                  
+a4378 checking         1000 c2                                                  
+a5363 saving           8000 c2                                                  
+a7236 checking          500 c33                                                 
+a8577 checking          150 c20                                                 
+
+6 rows selected.
+
+SQL> SELECT * FROM TOTALS_6;
+
+CUSTN TOTALAMOUNT                                                               
+----- -----------                                                               
+c1           7000                                                               
+c2           9000                                                               
+c33           500                                                               
+c20           150                                                               
+
+SQL> 
+SQL> Create Or Replace Trigger Acct_Cust_Trig
+  2  AFTER INSERT OR UPDATE ON Accounts_6
+  3  FOR EACH ROW
+  4  BEGIN
+  5  	     If inserting then
+  6  		     update totals_6
+  7  		     set totalAmount = totalAmount + :new.amount
+  8  		     where custno = :new.custno;
+  9  
+ 10  		     insert into totals_6 (
+ 11  			     select :new.custno, :new.amount from dual
+ 12  			     where not exists (
+ 13  				     SELECT * FROM TOTALS_6 WHERE custno=:new.custno
+ 14  			     )
+ 15  		     );
+ 16  	     END IF;
+ 17  	     if updating then
+ 18  	     /* If we are updating we want to correctly set the totalAmount
+ 19  	     to the new amount that may be >= or < old amount
+ 20  	     Complete the query */
+ 21  		     update totals_6
+ 22  		     set totalAmount = totalAmount + :new.amount - :old.amount
+ 23  		     where custno = :new.custno;
+ 24  	     end if;
+ 25  END;
+ 26  /
+
+Trigger created.
+
+SQL> Show Errors;
+No errors.
+SQL> 
+SQL> DELETE FROM ACCOUNTS_6;
+
+6 rows deleted.
+
+SQL> DELETE FROM TOTALS_6;
+
+4 rows deleted.
+
+SQL> 
+SQL> insert into ACCOUNTS_6 values('a1523','checking',2000.00,'c1');
+
+1 row created.
+
+SQL> insert into ACCOUNTS_6 values('a2134','saving',5000.00,'c1');
+
+1 row created.
+
+SQL> insert into ACCOUNTS_6 values('a4378','checking',1000.00,'c2');
+
+1 row created.
+
+SQL> insert into ACCOUNTS_6 values('a5363','saving',8000.00,'c2');
+
+1 row created.
+
+SQL> insert into ACCOUNTS_6 values('a7236','checking',500.00,'c33');
+
+1 row created.
+
+SQL> insert into ACCOUNTS_6 values('a8577','checking',150.00,'c20');
+
+1 row created.
+
+SQL> 
+SQL> SELECT * FROM ACCOUNTS_6;
+
+ACCOU ACCOUNTTYP     AMOUNT CUSTN                                               
+----- ---------- ---------- -----                                               
+a1523 checking         2000 c1                                                  
+a2134 saving           5000 c1                                                  
+a4378 checking         1000 c2                                                  
+a5363 saving           8000 c2                                                  
+a7236 checking          500 c33                                                 
+a8577 checking          150 c20                                                 
+
+6 rows selected.
+
+SQL> SELECT * FROM Totals_6;
+
+CUSTN TOTALAMOUNT                                                               
+----- -----------                                                               
+c1           7000                                                               
+c2           9000                                                               
+c33           500                                                               
+c20           150                                                               
+
+SQL> 
+SQL> update Accounts_6 set amount = 1000 where accountno = 'a1523';
+
+1 row updated.
+
+SQL> 
+SQL> SELECT * FROM ACCOUNTS_6;
+
+ACCOU ACCOUNTTYP     AMOUNT CUSTN                                               
+----- ---------- ---------- -----                                               
+a1523 checking         1000 c1                                                  
+a2134 saving           5000 c1                                                  
+a4378 checking         1000 c2                                                  
+a5363 saving           8000 c2                                                  
+a7236 checking          500 c33                                                 
+a8577 checking          150 c20                                                 
+
+6 rows selected.
+
+SQL> SELECT * FROM Totals_6;
+
+CUSTN TOTALAMOUNT                                                               
+----- -----------                                                               
+c1           6000                                                               
+c2           9000                                                               
+c33           500                                                               
+c20           150                                                               
+
+SQL> 
+SQL> Create Or Replace Trigger NoUpdatePK_trig
+  2  After UPDATE ON BANKCUST_6
+  3  For each row
+  4  BEGIN
+  5  	     if updating ('custno') then
+  6  		     raise_application_error (-20999,'Cannot update a Primary Key');
+  7  	     End if;
+  8  END;
+  9  /
+
+Trigger created.
+
+SQL> show errors;
+No errors.
+SQL> 
+SQL> UPDATE BANKCUST_6 Set custno='c99' Where custno='c1';
+UPDATE BANKCUST_6 Set custno='c99' Where custno='c1'
+       *
+ERROR at line 1:
+ORA-20999: Cannot update a Primary Key 
+ORA-06512: at "JTSUCHIYAMA.NOUPDATEPK_TRIG", line 3 
+ORA-04088: error during execution of trigger 'JTSUCHIYAMA.NOUPDATEPK_TRIG' 
+
+
+SQL> spool off

@@ -1,0 +1,529 @@
+SQL> start test_cases.sql
+SQL> SET SERVEROUTPUT ON;
+SQL> SET ECHO ON;
+SQL> 
+SQL> START create_tables.sql;
+SQL> DROP TABLE Item_Orders;
+
+Table dropped.
+
+SQL> DROP TABLE Customers;
+
+Table dropped.
+
+SQL> DROP TABLE Store_Items;
+
+Table dropped.
+
+SQL> 
+SQL> CREATE TABLE Customers (
+  2  	     custid NUMBER(5,0) PRIMARY KEY,
+  3  	     name VARCHAR(50),
+  4  	     phone_email VARCHAR(50) UNIQUE NOT NULL,
+  5  	     address VARCHAR(75),
+  6  	     cust_type VARCHAR(7) CHECK (cust_type='regular' OR cust_type='gold'),
+  7  	     date_joined DATE
+  8  );
+
+Table created.
+
+SQL> 
+SQL> CREATE TABLE Store_Items (
+  2  	     itemid NUMBER(5,0) PRIMARY KEY,
+  3  	     price NUMBER(5,2),
+  4  	     is_tshirt VARCHAR(1),
+  5  	     is_comic VARCHAR(1),
+  6  	     tshirt_size VARCHAR(3),
+  7  	     isbn NUMBER (13,0) UNIQUE,
+  8  	     title VARCHAR(50),
+  9  	     num_copies NUMBER(5,0) CHECK (num_copies >= 0),
+ 10  	     published_date DATE
+ 11  );
+
+Table created.
+
+SQL> 
+SQL> CREATE TABLE Item_Orders (
+  2  	     orderid NUMBER(5,0) PRIMARY KEY,
+  3  	     custid NUMBER(5,0),
+  4  	     itemid NUMBER(5,0),
+  5  	     date_of_order DATE,
+  6  	     shipping_fee NUMBER(2,0),
+  7  	     shipped_date DATE,
+  8  	     num_items NUMBER(5,0),
+  9  	     CONSTRAINT custid_fkey FOREIGN KEY (custid)REFERENCES Customers(custid),
+ 10  	     CONSTRAINT itemid_fkey FOREIGN KEY (itemid)REFERENCES Store_Items(itemid),
+ 11  	     CHECK (shipped_date >= date_of_order)
+ 12  );
+
+Table created.
+
+SQL> START add_tuples.sql;
+SQL> DELETE FROM Item_Orders;
+
+0 rows deleted.
+
+SQL> DELETE FROM Customers;
+
+0 rows deleted.
+
+SQL> DELETE FROM Store_Items;
+
+0 rows deleted.
+
+SQL> 
+SQL> INSERT INTO Customers VALUES (0,'Jake',8084222222,'415 S Beretania St, Honolulu, HI 96813','gold','16-MAY-19');
+
+1 row created.
+
+SQL> INSERT INTO Customers VALUES (1,'Landis',8081111111,'1315 10th St, Sacramento, CA 95814','gold','02-MARCH-20');
+
+1 row created.
+
+SQL> INSERT INTO Customers VALUES (2,'Justin',8084204204,'12333 W Olympic Blvd, Los Angeles, CA','regular','21-JUNE-21');
+
+1 row created.
+
+SQL> INSERT INTO Customers VALUES (3,'Jarin',8088088088,'3308 Kanaina Ave, Honolulu, HI 96815','regular','08-JAN-19');
+
+1 row created.
+
+SQL> INSERT INTO Customers VALUES (4,'Ryan',8081234567,'20 W 34th St, New York, NY 10001','regular','11-DEC-22');
+
+1 row created.
+
+SQL> 
+SQL> INSERT INTO Store_Items VALUES (0, 15, 1, 0, 'sm','','','','');
+
+1 row created.
+
+SQL> INSERT INTO Store_Items VALUES (1, 20, 1, 0, 'lrg','','','','');
+
+1 row created.
+
+SQL> INSERT INTO Store_Items VALUES (2, 25, 1, 0, 'xl','','','','');
+
+1 row created.
+
+SQL> INSERT INTO Store_Items VALUES (3, 15, 0, 1, '','9781421582696','My Hero Academia','5','4-APR-15');
+
+1 row created.
+
+SQL> INSERT INTO Store_Items VALUES (4, 15, 0, 1, '','9781569319000','Naruto','9','16-APR-03');
+
+1 row created.
+
+SQL> INSERT INTO Store_Items VALUES (5, 15, 0, 1, '','9781974700523','Demon Slayer','7','03-APR-18');
+
+1 row created.
+
+SQL> START functionality.sql;
+SQL> SET SERVEROUTPUT ON;
+SQL> SET ECHO ON;
+SQL> 
+SQL> /* Part A */
+SQL> CREATE OR REPLACE PROCEDURE addItemOrder (orderid NUMBER, item_id NUMBER, customerid NUMBER, date_ordered DATE, number_ordered NUMBER, shipped_date DATE)
+  2  AS
+  3  	     number_copies Store_Items.num_copies%type;
+  4  	     customer_type Customers.cust_type%type;
+  5  	     shipping_fee Item_Orders.shipping_fee%type;
+  6  BEGIN
+  7  	     SELECT num_copies INTO number_copies FROM Store_Items WHERE itemid = item_id;
+  8  	     IF number_ordered > number_copies THEN
+  9  		     Raise_Application_Error(-20999,'The number of copies ordered is greater than the number of copies in stock');
+ 10  	     END IF;
+ 11  
+ 12  	     SELECT cust_type INTO customer_type FROM Customers WHERE custid = customerid;
+ 13  	     IF customer_type = 'regular' THEN
+ 14  		     shipping_fee:= 10;
+ 15  	     ELSE
+ 16  		     shipping_fee:= 0;
+ 17  	     END IF;
+ 18  
+ 19  	     INSERT INTO Item_Orders VALUES(orderid, customerid, item_id, date_ordered, shipping_fee, '', number_ordered);
+ 20  
+ 21  	     UPDATE Store_Items SET num_copies = number_copies - number_ordered WHERE itemid = item_id;
+ 22  END;
+ 23  /
+
+Procedure created.
+
+SQL> SHOW ERRORS;
+No errors.
+SQL> 
+SQL> /* Part B */
+SQL> CREATE OR REPLACE TRIGGER goldUpdateTrig
+  2  AFTER UPDATE ON Customers
+  3  FOR EACH ROW
+  4  DECLARE
+  5  BEGIN
+  6  	     UPDATE Item_Orders SET shipping_fee = 0 WHERE :old.custid = custid AND :old.cust_type <> :new.cust_type AND :new.cust_type = 'gold' AND shipped_date IS NULL;
+  7  	     DBMS_OUTPUT.PUT_LINE('Updating all shipping fees for customer with cust id ' || :old.custid || ' since they are now a gold customer.');
+  8  END;
+  9  /
+
+Trigger created.
+
+SQL> SHOW ERRORS;
+No errors.
+SQL> 
+SQL> /* Part C */
+SQL> CREATE OR REPLACE PROCEDURE setShippingDate(order_id NUMBER, shippingDate DATE)
+  2  AS
+  3  	     ordered_date Item_Orders.date_of_order%type;
+  4  BEGIN
+  5  	     SELECT date_of_order INTO ordered_date FROM Item_Orders WHERE orderid = order_id;
+  6  	     IF ordered_date > shippingDate THEN
+  7  		     Raise_Application_Error(-20999,'The shippedDate is less than the OrderedDate');
+  8  	     ELSE
+  9  		     UPDATE Item_Orders SET Shipped_Date = shippingDate WHERE orderid = order_id;
+ 10  	     END IF;
+ 11  END;
+ 12  /
+
+Procedure created.
+
+SQL> SHOW ERRORS;
+No errors.
+SQL> 
+SQL> /* Part D */
+SQL> CREATE OR REPLACE FUNCTION computeTotal(order_id NUMBER)
+  2  RETURN NUMBER IS
+  3  	     total NUMBER(5,2);
+  4  	     item_id Item_Orders.itemid%type;
+  5  	     price_ Store_Items.price%type;
+  6  
+  7  	     num_ordered Item_Orders.num_items%type;
+  8  
+  9  	     shippingFee Item_Orders.shipping_fee%type;
+ 10  
+ 11  	     cust_id Item_Orders.custid%type;
+ 12  	     custType Customers.cust_type%type;
+ 13  
+ 14  BEGIN
+ 15  	     SELECT itemid INTO item_id FROM Item_Orders WHERE orderid = order_id;
+ 16  	     SELECT price INTO price_ FROM Store_Items WHERE itemid = item_id;
+ 17  
+ 18  	     SELECT num_items INTO num_ordered FROM Item_Orders WHERE orderid = order_id;
+ 19  
+ 20  	     SELECT shipping_fee INTO shippingFee FROM Item_Orders WHERE orderid = order_id;
+ 21  
+ 22  	     SELECT custid INTO cust_id FROM Item_Orders WHERE orderid = order_id;
+ 23  	     SELECT cust_type INTO custType FROM Customers WHERE custid = cust_id;
+ 24  
+ 25  	     total:= (price_ * num_ordered + shippingFee);
+ 26  
+ 27  	     IF custType = 'gold' AND total >= 100 THEN
+ 28  		     total:= total * 0.9;
+ 29  	     END IF;
+ 30  
+ 31  	     total:= total*1.05;
+ 32  
+ 33  	     RETURN total;
+ 34  END;
+ 35  /
+
+Function created.
+
+SQL> SHOW ERRORS;
+No errors.
+SQL> 
+SQL> /* Part E */
+SQL> CREATE OR REPLACE PROCEDURE showItemOrders(customerid NUMBER, less_date DATE)
+  2  AS
+  3  	     CURSOR c1 IS SELECT * FROM Item_Orders WHERE less_date < date_of_order AND custid = customerid;
+  4  	     cust_name Customers.name%type;
+  5  	     email_phone Customers.phone_email%type;
+  6  	     cust_address Customers.address%type;
+  7  	     custType Customers.cust_type%type;
+  8  
+  9  	     item_price Store_Items.price%type;
+ 10  	     item_title Store_Items.title%type;
+ 11  
+ 12  	     total_items NUMBER;
+ 13  	     tax NUMBER;
+ 14  	     discount NUMBER;
+ 15  	     grand_total NUMBER;
+ 16  BEGIN
+ 17  	     FOR item_order IN c1 LOOP
+ 18  		     SELECT name, phone_email, address, cust_type INTO cust_name, email_phone, cust_address, custType FROM Customers WHERE Customers.custid = item_order.custid;
+ 19  		     DBMS_OUTPUT.PUT_LINE('Customer Name: ' || cust_name);
+ 20  		     DBMS_OUTPUT.PUT_LINE('Customer ID: ' || item_order.custid);
+ 21  		     DBMS_OUTPUT.PUT_LINE('Phone Number/Email: ' || email_phone);
+ 22  		     DBMS_OUTPUT.PUT_LINE('Address: ' || cust_address);
+ 23  
+ 24  		     SELECT price, title INTO item_price, item_title FROM Store_Items WHERE item_order.itemid = Store_Items.itemid;
+ 25  		     DBMS_OUTPUT.PUT_LINE('Order ID: ' || item_order.orderid);
+ 26  		     DBMS_OUTPUT.PUT_LINE('Item ID: ' || item_order.itemid);
+ 27  		     DBMS_OUTPUT.PUT_LINE('Title: ' || item_title);
+ 28  		     DBMS_OUTPUT.PUT_LINE('Price of Item: ' || item_price);
+ 29  		     DBMS_OUTPUT.PUT_LINE('Date Ordered: ' || item_order.date_of_order);
+ 30  		     DBMS_OUTPUT.PUT_LINE('Shipped Date: ' || item_order.shipped_date);
+ 31  
+ 32  		     total_items:= item_price * item_order.num_items + item_order.shipping_fee;
+ 33  		     tax:= 5;
+ 34  		     IF custType = 'gold' AND total_items >= 100 THEN
+ 35  			     discount:= 10;
+ 36  		     ELSE
+ 37  			     discount:= 0;
+ 38  		     END IF;
+ 39  
+ 40  		     grand_total:= computeTotal(item_order.orderid);
+ 41  
+ 42  		     DBMS_OUTPUT.PUT_LINE('Total for all Items: ' || total_items);
+ 43  		     DBMS_OUTPUT.PUT_LINE('Tax: ' || tax || '%');
+ 44  		     DBMS_OUTPUT.PUT_LINE('Shipping Fee: ' || item_order.shipping_fee);
+ 45  		     DBMS_OUTPUT.PUT_LINE('Discount: ' || discount || '%');
+ 46  		     DBMS_OUTPUT.PUT_LINE('Grand Total: ' || grand_total);
+ 47  	     END LOOP;
+ 48  END;
+ 49  /
+
+Procedure created.
+
+SQL> SHOW ERRORS
+No errors.
+SQL> 
+SQL> /* 2.0 Demonstrating Functionality */
+SQL> /* Part A */
+SQL> SELECT itemid, num_copies FROM Store_Items;
+
+    ITEMID NUM_COPIES                                                           
+---------- ----------                                                           
+         0                                                                      
+         1                                                                      
+         2                                                                      
+         3          5                                                           
+         4          9                                                           
+         5          7                                                           
+
+6 rows selected.
+
+SQL> 
+SQL> /* Trying to order 6 copies of itemid 3 when there are only 5 copies */
+SQL> exec addItemOrder(1,3,4,'12-MAY-22',6,'');
+BEGIN addItemOrder(1,3,4,'12-MAY-22',6,''); END;
+
+*
+ERROR at line 1:
+ORA-20999: The number of copies ordered is greater than the number of copies in 
+stock 
+ORA-06512: at "JTSUCHIYAMA.ADDITEMORDER", line 9 
+ORA-06512: at line 1 
+
+
+SQL> 
+SQL> /* Successful order of itemid 3 since the number ordered of 1 is less than the number available of 5 */
+SQL> exec addItemOrder(1,3,4,'12-MAY-22',1,'');
+
+PL/SQL procedure successfully completed.
+
+SQL> 
+SQL> /* Successful update of the number of copies in the Store_Items table */
+SQL> SELECT itemid, num_copies FROM Store_Items;
+
+    ITEMID NUM_COPIES                                                           
+---------- ----------                                                           
+         0                                                                      
+         1                                                                      
+         2                                                                      
+         3          4                                                           
+         4          9                                                           
+         5          7                                                           
+
+6 rows selected.
+
+SQL> 
+SQL> /* Inserting a regular member into Item_Orders table */
+SQL> SELECT custid, cust_type FROM Customers WHERE custid = 4;
+
+    CUSTID CUST_TY                                                              
+---------- -------                                                              
+         4 regular                                                              
+
+SQL> SELECT * FROM Item_Orders;
+
+   ORDERID     CUSTID     ITEMID DATE_OF_O SHIPPING_FEE SHIPPED_D  NUM_ITEMS    
+---------- ---------- ---------- --------- ------------ --------- ----------    
+         1          4          3 12-MAY-22           10                    1    
+
+SQL> 
+SQL> /* Inserting a gold member into Item_Orders table */
+SQL> SELECT custid, cust_type FROM Customers WHERE custid = 1;
+
+    CUSTID CUST_TY                                                              
+---------- -------                                                              
+         1 gold                                                                 
+
+SQL> exec addItemOrder(2,1,1,'01-JUN-22',12,'');
+
+PL/SQL procedure successfully completed.
+
+SQL> SELECT * FROM Item_Orders;
+
+   ORDERID     CUSTID     ITEMID DATE_OF_O SHIPPING_FEE SHIPPED_D  NUM_ITEMS    
+---------- ---------- ---------- --------- ------------ --------- ----------    
+         1          4          3 12-MAY-22           10                    1    
+         2          1          1 01-JUN-22            0                   12    
+
+SQL> 
+SQL> /* Part B */
+SQL> /* Updating the customer type of custid 2 from regular to gold to check if the trigger works as desired */
+SQL> exec addItemOrder(3,0,2,'05-JUN-22',3,'');
+
+PL/SQL procedure successfully completed.
+
+SQL> exec setShippingDate(3, '07-JUN-22');
+
+PL/SQL procedure successfully completed.
+
+SQL> exec addItemOrder(4,1,2,'05-JUN-22',2,'');
+
+PL/SQL procedure successfully completed.
+
+SQL> SELECT * FROM Customers WHERE custid = 2;
+
+    CUSTID NAME                                                                 
+---------- --------------------------------------------------                   
+PHONE_EMAIL                                                                     
+--------------------------------------------------                              
+ADDRESS                                                                         
+---------------------------------------------------------------------------     
+CUST_TY DATE_JOIN                                                               
+------- ---------                                                               
+         2 Justin                                                               
+8084204204                                                                      
+12333 W Olympic Blvd, Los Angeles, CA                                           
+regular 21-JUN-21                                                               
+                                                                                
+
+SQL> SELECT * FROM Item_Orders;
+
+   ORDERID     CUSTID     ITEMID DATE_OF_O SHIPPING_FEE SHIPPED_D  NUM_ITEMS    
+---------- ---------- ---------- --------- ------------ --------- ----------    
+         1          4          3 12-MAY-22           10                    1    
+         2          1          1 01-JUN-22            0                   12    
+         3          2          0 05-JUN-22           10 07-JUN-22          3    
+         4          2          1 05-JUN-22           10                    2    
+
+SQL> UPDATE Customers SET cust_type = 'gold' WHERE custid = 2;
+Updating all shipping fees for customer with cust id 2 since they are now a gold
+customer.                                                                       
+
+1 row updated.
+
+SQL> SELECT * FROM Customers WHERE custid = 2;
+
+    CUSTID NAME                                                                 
+---------- --------------------------------------------------                   
+PHONE_EMAIL                                                                     
+--------------------------------------------------                              
+ADDRESS                                                                         
+---------------------------------------------------------------------------     
+CUST_TY DATE_JOIN                                                               
+------- ---------                                                               
+         2 Justin                                                               
+8084204204                                                                      
+12333 W Olympic Blvd, Los Angeles, CA                                           
+gold    21-JUN-21                                                               
+                                                                                
+
+SQL> SELECT * FROM Item_Orders;
+
+   ORDERID     CUSTID     ITEMID DATE_OF_O SHIPPING_FEE SHIPPED_D  NUM_ITEMS    
+---------- ---------- ---------- --------- ------------ --------- ----------    
+         1          4          3 12-MAY-22           10                    1    
+         2          1          1 01-JUN-22            0                   12    
+         3          2          0 05-JUN-22           10 07-JUN-22          3    
+         4          2          1 05-JUN-22            0                    2    
+
+SQL> 
+SQL> /* Part C */
+SQL> /* Trying to set a shipping date that is less than the ordering date */
+SQL> exec setShippingDate(1, '11-MAY-22');
+BEGIN setShippingDate(1, '11-MAY-22'); END;
+
+*
+ERROR at line 1:
+ORA-20999: The shippedDate is less than the OrderedDate 
+ORA-06512: at "JTSUCHIYAMA.SETSHIPPINGDATE", line 7 
+ORA-06512: at line 1 
+
+
+SQL> 
+SQL> /* Correctly setting the shipping date */
+SQL> exec setShippingDate(1, '14-MAY-22');
+
+PL/SQL procedure successfully completed.
+
+SQL> exec setShippingDate(2, '04-JUN-22');
+
+PL/SQL procedure successfully completed.
+
+SQL> 
+SQL> SELECT * FROM Item_Orders;
+
+   ORDERID     CUSTID     ITEMID DATE_OF_O SHIPPING_FEE SHIPPED_D  NUM_ITEMS    
+---------- ---------- ---------- --------- ------------ --------- ----------    
+         1          4          3 12-MAY-22           10 14-MAY-22          1    
+         2          1          1 01-JUN-22            0 04-JUN-22         12    
+         3          2          0 05-JUN-22           10 07-JUN-22          3    
+         4          2          1 05-JUN-22            0                    2    
+
+SQL> 
+SQL> /* Part D */
+SQL> /* Regular customer purchasing 1 of itemid 3 */
+SQL> /* (15*1 + 10) * 1.05 = 26.25 */
+SQL> SELECT computeTotal(1) FROM dual;
+
+COMPUTETOTAL(1)                                                                 
+---------------                                                                 
+          26.25                                                                 
+
+SQL> 
+SQL> /* Gold customer purchasing 12 of itemid 1 (An order of greater than $100) */
+SQL> /* (20*12) * 1.05 * 0.9 = 226.8 */
+SQL> SELECT computeTotal(2) FROM dual;
+
+COMPUTETOTAL(2)                                                                 
+---------------                                                                 
+          226.8                                                                 
+
+SQL> 
+SQL> /* Part E */
+SQL> /* Showing the item orders for customer Justin with a custid of 2 with an order date after May 17, 2022 */
+SQL> exec showItemOrders(2,'17-MAY-22');
+Customer Name: Justin                                                           
+Customer ID: 2                                                                  
+Phone Number/Email: 8084204204                                                  
+Address: 12333 W Olympic Blvd, Los Angeles, CA                                  
+Order ID: 3                                                                     
+Item ID: 0                                                                      
+Title:                                                                          
+Price of Item: 15                                                               
+Date Ordered: 05-JUN-22                                                         
+Shipped Date: 07-JUN-22                                                         
+Total for all Items: 55                                                         
+Tax: 5%                                                                         
+Shipping Fee: 10                                                                
+Discount: 0%                                                                    
+Grand Total: 57.75                                                              
+Customer Name: Justin                                                           
+Customer ID: 2                                                                  
+Phone Number/Email: 8084204204                                                  
+Address: 12333 W Olympic Blvd, Los Angeles, CA                                  
+Order ID: 4                                                                     
+Item ID: 1                                                                      
+Title:                                                                          
+Price of Item: 20                                                               
+Date Ordered: 05-JUN-22                                                         
+Shipped Date:                                                                   
+Total for all Items: 40                                                         
+Tax: 5%                                                                         
+Shipping Fee: 0                                                                 
+Discount: 0%                                                                    
+Grand Total: 42                                                                 
+
+PL/SQL procedure successfully completed.
+
+SQL> spool off

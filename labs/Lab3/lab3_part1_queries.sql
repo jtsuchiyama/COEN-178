@@ -1,0 +1,17 @@
+SELECT * FROM L_EMP;
+SELECT * FROM L_DEPT;
+SELECT empno, empname FROM L_EMP, L_DEPT WHERE deptname='Research';
+SELECT empno, empname FROM L_EMP, L_DEPT WHERE L_EMP.deptid = L_DEPT.deptid AND deptname = 'Research';
+SELECT empno, empname FROM L_EMP WHERE L_EMP.deptid = (SELECT deptid FROM L_DEPT WHERE deptname ='Research');
+SELECT empno, empname FROM L_EMP WHERE L_EMP.deptid = (SELECT deptid FROM L_DEPT WHERE budget > 100000);
+SELECT empno, empname FROM L_EMP WHERE L_EMP.deptid in (SELECT deptid FROM L_DEPT WHERE budget > 100000);
+SELECT deptname FROM L_DEPT WHERE budget >= (SELECT max(budget) FROM L_DEPT);
+SELECT deptname FROM L_DEPT WHERE budget >= ALL(SELECT budget FROM L_DEPT);
+SELECT count(*) LargeBudgetDepts FROM L_DEPT WHERE budget > 100000;
+SELECT budget Budget, count(*) HowMany FROM L_DEPT WHERE budget > 100000 GROUP BY (budget);
+INSERT INTO L_DEPT VALUES('d5','Food','300000');
+INSERT INTO L_DEPT VALUES('d6','Utilities','250000');
+INSERT INTO L_DEPT VALUES('d7','Writing','100000');
+INSERT INTO L_DEPT VALUES('d8','PR','700000');
+SELECT budget Budget, count(*) HowMany FROM L_DEPT WHERE budget > 100000 GROUP BY (budget);
+SELECT budget Budget, count(*) EqualOrGreaterThan2 FROM L_DEPT WHERE budget > 100000 GROUP BY (budget) HAVING count(*) >= 2;
